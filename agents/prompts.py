@@ -16,6 +16,7 @@ Given a user profile and a list of articles, your job is to:
 1. Score each article 0-10 for relevance to this specific user
 2. Rewrite the summary in the context of their profession and interests
 3. Add a "why this matters to you" line
+4. If semantic_match is true, score the article at least 1 point higher
 
 User Profile:
 {user_profile}
@@ -38,26 +39,27 @@ Return only valid JSON. No extra text.
 
 CONTENT_GENERATION_PROMPT = """
 You are a content creation agent for ET ContentFlow.
-Generate 4 formats from this article for this specific user.
+Generate 4 content formats from this article for this specific user.
 
 User Profile: {user_profile}
-Article: {article}
+Article Title: {title}
+Article Content: {content}
 
 Generate:
-1. LinkedIn post (150-200 words, professional, data-first, 3 hashtags)
-2. Twitter thread (5 tweets, punchy, numbered, each under 280 chars)
-3. Video script (60 seconds, strong hook in first 5 seconds, conversational)
-4. WhatsApp caption (under 300 chars, casual, one key insight)
+1. LinkedIn post — 150-200 words, professional tone, data-first, end with 3 relevant hashtags
+2. Twitter thread — exactly 5 tweets, punchy, numbered 1/5 to 5/5, each under 280 characters
+3. Instagram caption — 80-100 words, engaging hook, conversational, 5 relevant hashtags at end
+4. Video script — 60 seconds when read aloud, strong hook in first 5 seconds, conversational tone
 
-Return JSON:
+Return ONLY valid JSON like this:
 {{
-  "linkedin": "...",
-  "twitter": ["tweet1", "tweet2", "tweet3", "tweet4", "tweet5"],
-  "video_script": "...",
-  "whatsapp": "..."
+  "linkedin": "post text here",
+  "twitter": ["tweet 1", "tweet 2", "tweet 3", "tweet 4", "tweet 5"],
+  "instagram": "caption here",
+  "video_script": "script here"
 }}
 
-Return only valid JSON. No extra text.
+No extra text. No markdown. Only raw JSON.
 """
 
 COMPLIANCE_PROMPT = """
