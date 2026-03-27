@@ -1,94 +1,105 @@
+# database/db.py
 import sqlite3
 import json
-import os
 
 db_path = 'contentflow.db'
+
+
 def init_db():
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
 
-    #users
+    # users — no password field, OTP handles auth
     cursor.execute("""
-    CREATE TABLE IF NOT EXISTS users(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        profession TEXT,
-        interests TEXT,
-        format_preference TEXT,
-        language TEXT,
-        creator_mode INTEGER,
-        dynamic_profile TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            profession TEXT,
+            interests TEXT,
+            format_preference TEXT,
+            language TEXT,
+            creator_mode INTEGER,
+            dynamic_profile TEXT,
+            email TEXT UNIQUE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
     """)
 
-    #articles
+    # articles
     cursor.execute("""
-    CREATE TABLE IF NOT EXISTS articles(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        title TEXT,
-        summary TEXT,
-        full_text TEXT,
-        image_url TEXT,
-        article_url TEXT,
-        topic TEXT,
-        published_at TEXT,
-        is_cached INTEGER DEFAULT 1,
-        fetched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )
+        CREATE TABLE IF NOT EXISTS articles (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT,
+            summary TEXT,
+            full_text TEXT,
+            image_url TEXT,
+            article_url TEXT,
+            topic TEXT,
+            published_at TEXT,
+            is_cached INTEGER DEFAULT 1,
+            fetched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
     """)
 
-    #interactions
+    # interactions
     cursor.execute("""
-    CREATE TABLE IF NOT EXISTS interactions(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER REFERENCES users(id),
-        article_id INTEGER REFERENCES articles(id),
-        action TEXT,
-        time_spent INTEGER,
-        topic TEXT,
-        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )
+        CREATE TABLE IF NOT EXISTS interactions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER REFERENCES users(id),
+            article_id INTEGER REFERENCES articles(id),
+            action TEXT,
+            time_spent INTEGER,
+            topic TEXT,
+            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
     """)
 
-    #content
+    # generated content
     cursor.execute("""
-    CREATE TABLE IF NOT EXISTS generated_content(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER REFERENCES users(id),
-        article_id INTEGER REFERENCES articles(id),
-        linkedin_post TEXT,
-        twitter_post TEXT,
-        insta_post TEXT,
-        video_script TEXT,
-        accuracy_score REAL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )
+        CREATE TABLE IF NOT EXISTS generated_content (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER REFERENCES users(id),
+            article_id INTEGER REFERENCES articles(id),
+            linkedin_post TEXT,
+            twitter_post TEXT,
+            instagram_post TEXT,
+            video_script TEXT,
+            accuracy_score REAL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
     """)
 
-    #performance
+    # performance
     cursor.execute("""
-    CREATE TABLE IF NOT EXISTS performance(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER REFERENCES users(id),
-        content_id INTEGER REFERENCES generated_content(id),
-        platform TEXT,
-        views INTEGER,
-        likes INTEGER,
-        shares INTEGER,
-        topic TEXT,
-        logged_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )
+        CREATE TABLE IF NOT EXISTS performance (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER REFERENCES users(id),
+            content_id INTEGER REFERENCES generated_content(id),
+            platform TEXT,
+            views INTEGER,
+            likes INTEGER,
+            shares INTEGER,
+            topic TEXT,
+            logged_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
     """)
 
     conn.commit()
     conn.close()
-    print("database initialized")
-        
+    print("Database initialized")
 
-def save_user(name, profession, interests, format_pref, language, creator_mode):
+
+# ─── USER FUNCTIONS ────────────────────────────────
+
+def save_user(name, profession, interests, format_pref, language, creator_mode, email):
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
+
+    # check if email already exists
+    cursor.execute("SELECT id FROM users WHERE email = ?", (email.strip().lower(),))
+    if cursor.fetchone():
+        conn.close()
+        return None
 
     dynamic_profile = json.dumps({
         "topic_scores": {topic: 0.5 for topic in interests},
@@ -98,9 +109,10 @@ def save_user(name, profession, interests, format_pref, language, creator_mode):
 
     cursor.execute("""
         INSERT INTO users
-        (name, profession, interests, format_preference, language, creator_mode, dynamic_profile)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-    """, (name, profession, json.dumps(interests), format_pref, language, int(creator_mode), dynamic_profile))
+        (name, profession, interests, format_preference, language, creator_mode, dynamic_profile, email)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    """, (name, profession, json.dumps(interests), format_pref, language,
+          int(creator_mode), dynamic_profile, email.strip().lower()))
 
     user_id = cursor.lastrowid
     conn.commit()
@@ -114,20 +126,48 @@ def get_user(user_id):
     cursor.execute("SELECT * FROM users WHERE id = ?", (user_id,))
     row = cursor.fetchone()
     conn.close()
-
     if row:
-        return {
-            "id": row[0],
-            "name": row[1],
-            "profession": row[2],
-            "interests": json.loads(row[3]),
-            "format_preference": row[4],
-            "language": row[5],
-            "creator_mode": bool(row[6]),
-            "dynamic_profile": json.loads(row[7]),
-            "created_at": row[8]
-        }
+        return _row_to_user(row)
     return None
+
+
+def get_user_by_email_only(email: str):
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM users WHERE email = ?", (email.strip().lower(),))
+    row = cursor.fetchone()
+    conn.close()
+    if row:
+        return _row_to_user(row)
+    return None
+
+
+def _row_to_user(row):
+    return {
+        "id": row[0],
+        "name": row[1],
+        "profession": row[2],
+        "interests": json.loads(row[3]),
+        "format_preference": row[4],
+        "language": row[5],
+        "creator_mode": bool(row[6]),
+        "dynamic_profile": json.loads(row[7]),
+        "email": row[8],
+        "created_at": row[9] if len(row) > 9 else ""
+    }
+
+
+def update_user_profile(user_id, profession, interests, format_pref, language, creator_mode):
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    cursor.execute("""
+        UPDATE users
+        SET profession=?, interests=?, format_preference=?, language=?, creator_mode=?
+        WHERE id=?
+    """, (profession, json.dumps(interests), format_pref, language,
+          int(creator_mode), user_id))
+    conn.commit()
+    conn.close()
 
 
 def update_dynamic_profile(user_id, topic, action):
@@ -162,13 +202,27 @@ def update_dynamic_profile(user_id, topic, action):
     conn.close()
 
 
+def update_best_format(user_id, best_format):
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    cursor.execute("SELECT dynamic_profile FROM users WHERE id = ?", (user_id,))
+    row = cursor.fetchone()
+    if row:
+        profile = json.loads(row[0])
+        profile["best_format"] = best_format
+        cursor.execute("""
+            UPDATE users SET dynamic_profile = ? WHERE id = ?
+        """, (json.dumps(profile), user_id))
+        conn.commit()
+    conn.close()
+
+
 # ─── ARTICLE FUNCTIONS ─────────────────────────────
 
 def save_article(title, summary, full_text, image_url, article_url, topic, published_at):
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
 
-    # avoid duplicates
     cursor.execute("SELECT id FROM articles WHERE article_url = ?", (article_url,))
     existing = cursor.fetchone()
     if existing:
@@ -188,10 +242,8 @@ def save_article(title, summary, full_text, image_url, article_url, topic, publi
 
 
 def get_cached_articles(topic, minutes=30):
-    """Returns articles fetched within last X minutes for a topic"""
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
-
     cursor.execute("""
         SELECT * FROM articles
         WHERE topic = ?
@@ -199,7 +251,6 @@ def get_cached_articles(topic, minutes=30):
         ORDER BY published_at DESC
         LIMIT 10
     """, (topic, f'-{minutes} minutes'))
-
     rows = cursor.fetchall()
     conn.close()
     return [_row_to_article(row) for row in rows]
@@ -220,22 +271,31 @@ def _row_to_article(row):
 
 
 def cleanup_old_articles():
-    """Delete articles older than 24 hours with no interactions"""
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
-
     cursor.execute("""
         DELETE FROM articles
         WHERE fetched_at < datetime('now', '-24 hours')
-        AND id NOT IN (
-            SELECT DISTINCT article_id FROM interactions
-        )
+        AND id NOT IN (SELECT DISTINCT article_id FROM interactions)
     """)
-
     deleted = cursor.rowcount
     conn.commit()
     conn.close()
     print(f"Cleaned up {deleted} old articles")
+
+
+def get_skipped_articles(user_id):
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT DISTINCT a.article_url
+        FROM interactions i
+        JOIN articles a ON i.article_id = a.id
+        WHERE i.user_id = ? AND i.action = 'skipped'
+    """, (user_id,))
+    rows = cursor.fetchall()
+    conn.close()
+    return [row[0] for row in rows]
 
 
 # ─── INTERACTION FUNCTIONS ─────────────────────────
@@ -243,30 +303,45 @@ def cleanup_old_articles():
 def log_interaction(user_id, article_id, action, time_spent, topic):
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
-
     cursor.execute("""
         INSERT INTO interactions (user_id, article_id, action, time_spent, topic)
         VALUES (?, ?, ?, ?, ?)
     """, (user_id, article_id, action, time_spent, topic))
-
     conn.commit()
     conn.close()
 
-    # silently update profile on every interaction
     update_dynamic_profile(user_id, topic, action)
+
+    # store in chromadb if user read the article
+    if action in ["read_full", "created_content"]:
+        try:
+            cursor2 = sqlite3.connect(db_path).cursor()
+            cursor2.execute(
+                "SELECT title, full_text FROM articles WHERE id = ?",
+                (article_id,)
+            )
+            row = cursor2.fetchone()
+            if row:
+                from utils.chroma import store_user_reading
+                store_user_reading(
+                    user_id=user_id,
+                    article_id=article_id,
+                    title=row[0] or "",
+                    full_text=row[1] or ""
+                )
+        except Exception as e:
+            print(f"ChromaDB reading history skipped: {e}")
 
 
 def get_user_interactions(user_id, limit=50):
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
-
     cursor.execute("""
         SELECT * FROM interactions
         WHERE user_id = ?
         ORDER BY timestamp DESC
         LIMIT ?
     """, (user_id, limit))
-
     rows = cursor.fetchall()
     conn.close()
     return rows
@@ -277,13 +352,11 @@ def get_user_interactions(user_id, limit=50):
 def save_generated_content(user_id, article_id, linkedin, twitter, instagram, video_script, accuracy_score):
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
-
     cursor.execute("""
         INSERT INTO generated_content
         (user_id, article_id, linkedin_post, twitter_post, instagram_post, video_script, accuracy_score)
         VALUES (?, ?, ?, ?, ?, ?, ?)
     """, (user_id, article_id, linkedin, twitter, instagram, video_script, accuracy_score))
-
     content_id = cursor.lastrowid
     conn.commit()
     conn.close()
@@ -293,14 +366,12 @@ def save_generated_content(user_id, article_id, linkedin, twitter, instagram, vi
 def get_user_generated_content(user_id, limit=20):
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
-
     cursor.execute("""
         SELECT * FROM generated_content
         WHERE user_id = ?
         ORDER BY created_at DESC
         LIMIT ?
     """, (user_id, limit))
-
     rows = cursor.fetchall()
     conn.close()
     return rows
@@ -311,13 +382,11 @@ def get_user_generated_content(user_id, limit=20):
 def save_performance(user_id, content_id, platform, views, likes, shares, topic):
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
-
     cursor.execute("""
         INSERT INTO performance
         (user_id, content_id, platform, views, likes, shares, topic)
         VALUES (?, ?, ?, ?, ?, ?, ?)
     """, (user_id, content_id, platform, views, likes, shares, topic))
-
     conn.commit()
     conn.close()
 
@@ -325,13 +394,11 @@ def save_performance(user_id, content_id, platform, views, likes, shares, topic)
 def get_user_performance(user_id):
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
-
     cursor.execute("""
         SELECT * FROM performance
         WHERE user_id = ?
         ORDER BY logged_at DESC
     """, (user_id,))
-
     rows = cursor.fetchall()
     conn.close()
     return rows
