@@ -1,10 +1,11 @@
-RSS={
-    "market": "https://economictimes.indiatimes.com/markets/rssfeeds/1977021501.cms",
-    "economy":    "https://economictimes.indiatimes.com/news/economy/rssfeeds/20150316.cms",
-    "startups":   "https://economictimes.indiatimes.com/tech/startups/rssfeeds/78570550.cms",
-    "tech":       "https://economictimes.indiatimes.com/tech/rssfeeds/13357270.cms",
-    "wealth":     "https://economictimes.indiatimes.com/wealth/rssfeeds/837555174.cms",
-    "top_stories":"https://economictimes.indiatimes.com/rssfeedstopstories.cms"   
+RSS = {
+    "markets": "https://economictimes.indiatimes.com/markets/rssfeeds/1977021501.cms",  # ← add s
+    "economy": "https://economictimes.indiatimes.com/news/economy/rssfeeds/20150316.cms",
+    "startups": "https://economictimes.indiatimes.com/tech/startups/rssfeeds/78570550.cms",
+    "tech": "https://economictimes.indiatimes.com/tech/rssfeeds/13357270.cms",
+    "wealth": "https://economictimes.indiatimes.com/wealth/rssfeeds/837555174.cms",
+    "banking": "https://economictimes.indiatimes.com/industry/banking/finance/rssfeeds/13358259.cms",
+    "top_stories": "https://economictimes.indiatimes.com/rssfeedstopstories.cms"
 }
 
 def get_feed(interests: list) -> dict:
