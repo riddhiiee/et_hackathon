@@ -14,7 +14,7 @@ init_db()
 # ── page config ───────────────────────────────────
 st.set_page_config(
     page_title="ET ContentFlow",
-    page_icon="📊",
+    page_icon="img/et_icon.png",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
@@ -179,12 +179,24 @@ def show_landing():
     """, height=455, scrolling=False)
 
     col1, col2, col3 = st.columns([1, 1, 2])
+
+    btn_style = """
+    <style>
+    div.stButton > button {
+        height: 50px !important;
+        width: 100% !important;
+    }
+    </style>
+    """
+    st.markdown(btn_style, unsafe_allow_html=True)
+
     with col1:
-        if st.button("GET STARTED →", width="stretch", type="primary"):
+        if st.button("GET STARTED", key="get_started_btn", use_container_width=True, type="primary"):
             st.session_state.page = "register"
             st.rerun()
+
     with col2:
-        if st.button("SIGN IN", width="stretch"):
+        if st.button("SIGN IN", key="sign_in_btn", use_container_width=True):
             st.session_state.page = "signin"
             st.rerun()
 
@@ -776,10 +788,7 @@ def show_feed():
 
     st.markdown('</div>', unsafe_allow_html=True)
 
-
-# ══════════════════════════════════════════════════
 # CREATE PAGE
-# ══════════════════════════════════════════════════
 def show_create():
     user = st.session_state.user
     article = st.session_state.get("selected_article")
@@ -886,7 +895,7 @@ def show_create():
     </style>
     """, unsafe_allow_html=True)
 
-    # ── back button ───────────────────────────────
+    # back button 
     col_back, _ = st.columns([1, 5])
     with col_back:
         if st.button("← Back", key="back_to_feed"):
@@ -894,7 +903,7 @@ def show_create():
             st.session_state.generated = None
             st.rerun()
 
-    # ── header ────────────────────────────────────
+    #  header 
     st.markdown(f"""
     <div class="create-header">
         <div class="create-eyebrow">Creator Studio</div>
@@ -902,7 +911,7 @@ def show_create():
     </div>
     """, unsafe_allow_html=True)
 
-    # ── source article ────────────────────────────
+    # source article 
     _, center, _ = st.columns([1, 6, 1])
     st.markdown(f"""
     <div class="source-card">
@@ -911,27 +920,58 @@ def show_create():
     </div>
     """, unsafe_allow_html=True)
 
-    # ── generate ──────────────────────────────────
+
+   # generate 
     if not st.session_state.generated:
-        with st.spinner("Generating content..."):
-            #── REAL PIPELINE (uncomment when API resets) ──
-            try:
-                from pipelines.creator_pipeline import creator_pipeline
-                creator_state = {
-                    "user_profile": user, "raw_articles": [], "enriched_articles": [],
-                    "personalized_feed": [], "selected_article": article,
-                    "generated_content": None, "tone_adapted_content": None,
-                    "compliance_passed": None, "compliance_issues": None,
-                    "final_content": None, "retry_count": 0,
-                    "performance_history": None, "content_strategy": None
-                }
-                creator_result = creator_pipeline.invoke(creator_state)
-                st.session_state.generated = creator_result["final_content"]
-                st.rerun()
-            except Exception as e:
-                st.error("API limit reached. Please wait a few minutes.")
-                st.session_state.page = "feed"
-                st.rerun()    
+        st.markdown("""
+        <style>
+        .gen-loading {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: #0a0a0a; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; z-index: 9999;
+        }
+        .gen-logo { font-family: 'Playfair Display', serif; font-size: 18px;
+                    font-weight: 700; color: #f0ece4; margin-bottom: 60px; opacity: 0.5; }
+        .gen-logo span { color: #d4a855; }
+        .gen-tag { font-family: 'DM Sans', sans-serif; font-size: 10px;
+                   letter-spacing: 4px; text-transform: uppercase;
+                   color: #d4a855; margin-bottom: 16px; }
+        .gen-text { font-family: 'Playfair Display', serif; font-size: 24px;
+                    font-weight: 700; color: #f0ece4; margin-bottom: 48px;
+                    text-align: center; max-width: 400px; line-height: 1.3; }
+        .gen-bar { width: 240px; height: 1px; background: rgba(255,255,255,0.08); }
+        .gen-fill { height: 100%; background: #d4a855; width: 60%;
+                    animation: fillbar 2s ease infinite alternate; }
+        @keyframes fillbar { from { width: 20%; } to { width: 90%; } }
+        </style>
+        <div class="gen-loading">
+            <div class="gen-logo">ET <span>ContentFlow</span></div>
+            <div class="gen-tag">CREATING</div>
+            <div class="gen-text">Crafting your content across 4 platforms...</div>
+            <div class="gen-bar"><div class="gen-fill"></div></div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        try:
+            from pipelines.creator_pipeline import creator_pipeline
+            creator_state = {
+                "user_profile": user, "raw_articles": [], "enriched_articles": [],
+                "personalized_feed": [], "selected_article": article,
+                "generated_content": None, "tone_adapted_content": None,
+                "compliance_passed": None, "compliance_issues": None,
+                "final_content": None, "retry_count": 0,
+                "performance_history": None, "content_strategy": None
+            }
+            creator_result = creator_pipeline.invoke(creator_state)
+            st.session_state.generated = creator_result["final_content"]
+            st.rerun()
+        except Exception as e:
+            if "429" in str(e) or "rate_limit" in str(e):
+                st.error("API rate limit reached. Please wait a few minutes.")
+            else:
+                st.error("Content generation failed. Please try again.")
+            st.session_state.page = "feed"
+            st.rerun()
 
     final = st.session_state.generated
     if not final:
