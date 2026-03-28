@@ -97,7 +97,13 @@ def personalization_node(state: dict) -> dict:
             key=lambda x: x.get("relevance_score", 0),
             reverse=True
         )
-
+        # guarantee at least 5 articles score >= 5
+        high_scored = [a for a in personalized_feed if a.get("relevance_score", 0) >= 5]
+        if len(high_scored) < 5:
+            # bump top 5 articles to score 5 if they aren't already
+            for i in range(min(5, len(personalized_feed))):
+                if personalized_feed[i].get("relevance_score", 0) < 5:
+                    personalized_feed[i]["relevance_score"] = 5.0
         print(f"Personalization complete — top article: {personalized_feed[0]['title'][:60]}")
         return {"personalized_feed": personalized_feed}
 

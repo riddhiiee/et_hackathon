@@ -9,10 +9,27 @@ def news_fetcher_node(state: dict) -> dict:
     based on user interests
     """
     user_profile = state["user_profile"]
-    interests = user_profile["interests"]
+    # normalize interests to match RSS keys
+    interest_map = {
+        "markets": "markets",
+        "economy": "economy", 
+        "banking": "banking",
+        "startups": "startups",
+        "tech": "tech",
+        "wealth": "wealth",
+        "wealth_personal_finance": "wealth",
+        "real_estate": "top_stories",
+        "global_markets": "top_stories"
+    }
     
+    user_interests = [
+        interest_map.get(i.lower().replace(" ", "_"), "top_stories")
+        for i in user_profile.get("interests", [])
+    ]
+    if "top_stories" not in user_interests:
+        user_interests.append("top_stories")
     # get relevant feeds
-    feeds = get_feed(interests)
+    feeds = get_feed(user_interests)
     
     all_articles = []
     
