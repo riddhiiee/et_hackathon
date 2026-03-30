@@ -183,8 +183,6 @@ requests
 ## ⚠️ Known Issues
 
 * ⏳ Groq free tier limit: 100K tokens/day
-* 🐢 First load slow due to article fetching
-* 🌗 UI works best in dark mode
 
 ---
 
