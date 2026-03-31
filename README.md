@@ -6,6 +6,10 @@
 An AI-native platform that **personalizes news** and **instantly generates multi-platform content** using LLMs and multi-agent pipelines.
 
 ---
+## Demo Video Link:
+https://drive.google.com/file/d/1hsu_PJgnkrH9_P7VZAUp784pMcLxB-l7/view?usp=drive_link
+
+--- 
 
 ## 📌 Overview
 
