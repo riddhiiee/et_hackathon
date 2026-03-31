@@ -7,7 +7,7 @@ An AI-native platform that **personalizes news** and **instantly generates multi
 
 ---
 ## Demo Video Link:
-https://drive.google.com/file/d/1hsu_PJgnkrH9_P7VZAUp784pMcLxB-l7/view?usp=drive_link
+https://drive.google.com/file/d/1hsu_PJgnkrH9_P7VZAUp784pMcLxB-l7/view?usp=sharing
 
 --- 
 
